@@ -7,7 +7,7 @@
 <style>
 /* ============================================================
    CONFIGURACIÓN RÁPIDA  →  edita solo este bloque CSS de marca
-   La configuración funcional está en el <script> CONFIG, abajo.
+   La configuración funcional está en el bloque CONFIG (abajo, en JS).
    ============================================================ */
 :root{
   --bg:#f4f6fb; --card:#ffffff; --ink:#1c2433; --muted:#5b6678;
@@ -80,6 +80,21 @@ textarea{resize:vertical;min-height:64px}
 .role .ic{font-size:34px;line-height:1}
 .role h2{margin:.4em 0 .2em}
 
+/* hero / portada */
+.hero{position:relative;overflow:hidden;border-radius:18px;margin:14px 0 4px;
+  background:linear-gradient(135deg,#1f3fa8 0%,#2f5fe0 45%,#5a85ff 100%);
+  box-shadow:var(--shadow);isolation:isolate}
+.hero-bg{position:absolute;inset:0;z-index:-1;opacity:.9}
+.hero-bg svg{width:100%;height:100%;display:block}
+.hero-in{padding:30px 26px 28px;color:#fff}
+.hero-badges{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.hero-badge{font-size:12px;font-weight:700;letter-spacing:.02em;padding:5px 11px;border-radius:999px;
+  background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);backdrop-filter:blur(2px)}
+.hero-title{margin:0;font-size:28px;font-weight:800;letter-spacing:-.6px;line-height:1.1;text-shadow:0 1px 10px rgba(10,20,60,.25)}
+@media(min-width:600px){.hero-title{font-size:34px}}
+.hero-sub{margin:.35em 0 0;font-size:17px;font-weight:600;color:rgba(255,255,255,.95)}
+.hero-note{margin:.8em 0 0;font-size:13.5px;line-height:1.5;color:rgba(255,255,255,.82);max-width:52ch}
+
 /* rubric criterion */
 .crit{border:1px solid var(--line);border-radius:12px;padding:16px;margin:14px 0;background:var(--card)}
 .crit .chead{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
@@ -144,6 +159,33 @@ tr.grp:hover{background:var(--accent)}
 
   <!-- ===================== VISTA: INICIO ===================== -->
   <section id="view-home">
+    <div class="hero">
+      <div class="hero-bg" aria-hidden="true">
+        <svg viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse">
+              <circle cx="2" cy="2" r="1.6" fill="rgba(255,255,255,.18)"/>
+            </pattern>
+          </defs>
+          <rect width="400" height="200" fill="url(#dots)"/>
+          <g stroke="rgba(255,255,255,.22)" stroke-width="1.4" fill="none">
+            <path d="M20,160 L80,110 L150,140 L230,70 L310,100 L380,40"/>
+            <circle cx="80" cy="110" r="4" fill="rgba(255,255,255,.5)"/>
+            <circle cx="230" cy="70" r="4" fill="rgba(255,255,255,.5)"/>
+            <circle cx="310" cy="100" r="4" fill="rgba(255,255,255,.5)"/>
+          </g>
+        </svg>
+      </div>
+      <div class="hero-in">
+        <div class="hero-badges">
+          <span class="hero-badge">IES Zaframagón</span>
+          <span class="hero-badge">TIC I · 1.º Bachillerato</span>
+        </div>
+        <h1 class="hero-title">Coevaluación de presentaciones</h1>
+        <p class="hero-sub" id="heroTopic">La Sociedad de la Información</p>
+        <p class="hero-note">Evalúa las exposiciones de tus compañeros con la rúbrica. Tus notas se suman a las del resto para obtener la media de cada presentación.</p>
+      </div>
+    </div>
     <div class="card center">
       <span class="tag" id="critTag">Criterio 1.1</span>
       <h2 style="margin-top:12px" id="homeTopic">La Sociedad de la Información</h2>
@@ -170,10 +212,11 @@ tr.grp:hover{background:var(--accent)}
       <h2 style="margin-top:8px">Evaluar una presentación</h2>
       <p class="muted small">Valora cada criterio según la rúbrica. La nota se calcula automáticamente sobre 10.</p>
 
-      <label for="evName">Tu nombre y apellidos</label>
-      <input type="text" id="evName" placeholder="Ej.: María López García" autocomplete="off">
+      <label for="evSelf" id="lblSelf">¿Quién eres?</label>
+      <select id="evSelf" onchange="refreshGroupSelect()"><option value="">— Selecciona —</option></select>
+      <input type="text" id="evName" class="hidden" placeholder="Ej.: María López García" autocomplete="off">
 
-      <label for="evGroup">Grupo o compañero/a que has evaluado</label>
+      <label for="evGroup">¿A quién evalúas?</label>
       <select id="evGroup"><option value="">— Selecciona —</option></select>
 
       <div id="rubricArea"></div>
@@ -261,8 +304,22 @@ const CONFIG = {
   // URL del Web App de Apps Script. Vacío = modo demostración (localStorage).
   backendUrl: "https://script.google.com/a/macros/g.educaand.es/s/AKfycbyHW06KaGajG_pmeEfCTG9HUP37JVfKdr9oFSOT5lFTLH4gIclBEE0a5Ew8KqmIiLA_/exec",
 
-  // Grupos por defecto (luego se gestionan desde el panel / la hoja)
-  defaultGroups: ["Grupo 1", "Grupo 2", "Grupo 3", "Grupo 4"],
+  // Calendario de exposiciones: cada alumno aparece SOLO con sus iniciales,
+  // agrupado por día. El valor guardado en las evaluaciones son las iniciales.
+  schedule: [
+    { date:"Martes, 27 de octubre",   students:["A.P.R.","D.C.J.","C.C.G.","M.T.M.","Á.R.C."] },
+    { date:"Miércoles, 28 de octubre", students:["P.V.C.","P.P.M.","C.M.R.","I.C.T."] },
+    { date:"Martes, 3 de noviembre",  students:["A.C.C.","M.P.R.","P.V.G.","T.O.A.","V.P.G."] },
+    { date:"Miércoles, 4 de noviembre",students:["Á.P.S.","O.M.M.","A.G.R.","E.P.G."] },
+    { date:"Martes, 10 de noviembre", students:["R.V.J.","J.R.P.C.","A.P.Z.","T.G.O.","Á.P.P."] },
+    { date:"Miércoles, 11 de noviembre",students:["M.G.G.","M.S.C.","Á.V.R.","J.L.V.H."] }
+  ],
+  // (Se deriva automáticamente la lista plana de iniciales a partir de schedule)
+  get defaultGroups(){ return this.schedule.reduce((a,s)=>a.concat(s.students),[]); },
+
+  // Reglas de evaluación
+  allowSelfEvaluation: false,   // false = el alumno elige quién es y no puede evaluarse a sí mismo
+  preventDuplicate: true,       // true = evita que el mismo alumno evalúe dos veces al mismo compañero (en este navegador)
 
   // Rúbrica: criterios con su puntuación máxima y las 3 bandas de desempeño.
   // La nota de cada criterio va de 0 a su "max"; la suma de los tres = /10.
@@ -321,6 +378,7 @@ function init(){
   $("#h-title").textContent=CONFIG.title;
   $("#h-sub").textContent=CONFIG.subtitle;
   $("#homeTopic").textContent=CONFIG.topic;
+  const ht=$("#heroTopic"); if(ht) ht.textContent=CONFIG.topic;
   $("#critTag").textContent="Criterio "+CONFIG.criterio;
   $("#homeCritDesc").textContent=CONFIG.criterioDesc;
   $("#footCrit").textContent=CONFIG.criterio;
@@ -384,12 +442,58 @@ function go(view){
   window.scrollTo(0,0);
 }
 
-/* ---- Grupos: lista desplegable ---- */
+/* ---- ¿Hay lista de evaluadores (roster)? ---- */
+function hasRoster(){ return !CONFIG.allowSelfEvaluation && GROUPS.length>0 && CONFIG.schedule && CONFIG.schedule.length; }
+
+/* ---- Selector "¿Quién eres?" ---- */
+function refreshSelfSelect(){
+  const self=$("#evSelf"); if(!self) return;
+  // Si no se usa roster, se oculta y se usa el campo de texto libre.
+  if(!hasRoster()){
+    self.classList.add("hidden"); $("#lblSelf").classList.add("hidden");
+    $("#evName").classList.remove("hidden");
+    return;
+  }
+  self.classList.remove("hidden"); $("#lblSelf").classList.remove("hidden");
+  $("#evName").classList.add("hidden");
+  const cur=self.value;
+  self.innerHTML='<option value="">— Selecciona —</option>';
+  CONFIG.schedule.forEach(sesion=>{
+    const og=el("optgroup"); og.label=sesion.date;
+    sesion.students.forEach(g=>{ if(!GROUPS.includes(g))return;
+      const o=el("option"); o.value=g; o.textContent=g; og.appendChild(o); });
+    if(og.children.length) self.appendChild(og);
+  });
+  if([...self.options].some(o=>o.value===cur)) self.value=cur;
+}
+
+/* ---- Grupos: lista desplegable "¿A quién evalúas?" ---- */
 function refreshGroupSelect(){
+  refreshSelfSelect();
+  const me = hasRoster() ? ($("#evSelf")?$("#evSelf").value:"") : "";
   const sel=$("#evGroup"); const cur=sel.value;
   sel.innerHTML='<option value="">— Selecciona —</option>';
-  GROUPS.forEach(g=>{const o=el("option");o.value=g;o.textContent=g;sel.appendChild(o);});
-  sel.value=cur;
+  const placed=new Set();
+  // Agrupado por día de exposición (si hay calendario)
+  if(CONFIG.schedule && CONFIG.schedule.length){
+    CONFIG.schedule.forEach(sesion=>{
+      const og=el("optgroup"); og.label=sesion.date;
+      sesion.students.forEach(g=>{
+        if(!GROUPS.includes(g)) return;      // respeta altas/bajas desde el panel
+        if(g===me) return;                   // no te puedes evaluar a ti mismo/a
+        const o=el("option"); o.value=g; o.textContent=g; og.appendChild(o); placed.add(g);
+      });
+      if(og.children.length) sel.appendChild(og);
+    });
+  }
+  // Cualquier grupo extra añadido a mano
+  const extra=GROUPS.filter(g=>!placed.has(g) && g!==me);
+  if(extra.length){
+    const og=el("optgroup"); og.label="Otros";
+    extra.forEach(g=>{const o=el("option");o.value=g;o.textContent=g;og.appendChild(o);});
+    sel.appendChild(og);
+  }
+  if([...sel.options].some(o=>o.value===cur)) sel.value=cur; else sel.value="";
   renderGroupChips();
 }
 function renderGroupChips(){
@@ -415,14 +519,21 @@ async function removeGroup(g){
 }
 
 /* ---- Enviar evaluación ---- */
+function doneKey(self,group){ return "coev_done_"+self+"__"+group; }
+
 async function submitEval(){
-  const name=$("#evName").value.trim();
+  const roster=hasRoster();
+  const evaluador = roster ? $("#evSelf").value : $("#evName").value.trim();
   const group=$("#evGroup").value;
-  if(!name){ msg("#studentMsg","Escribe tu nombre.","err"); return; }
-  if(!group){ msg("#studentMsg","Selecciona el grupo que has evaluado.","err"); return; }
+  if(!evaluador){ msg("#studentMsg", roster?"Elige quién eres.":"Escribe tu nombre.","err"); return; }
+  if(!group){ msg("#studentMsg","Selecciona a quién evalúas.","err"); return; }
+  if(roster && evaluador===group){ msg("#studentMsg","No puedes evaluarte a ti mismo/a.","err"); return; }
+  if(CONFIG.preventDuplicate && localStorage.getItem(doneKey(evaluador,group))){
+    msg("#studentMsg",`Ya habías evaluado a <b>${group}</b> desde este equipo.`,"err"); return;
+  }
   const total=recalcTotal();
   const payload={
-    action:"submit", evaluador:name, grupo:group,
+    action:"submit", evaluador:evaluador, grupo:group,
     c1:scores.c1, c2:scores.c2, c3:scores.c3, total:total,
     comentario:$("#evComment").value.trim()
   };
@@ -430,10 +541,12 @@ async function submitEval(){
   try{
     if(DEMO){ demoSubmit(payload); }
     else{ const r=await api(payload); if(!r||!r.ok) throw new Error(r&&r.error||"Error del servidor"); }
+    try{ localStorage.setItem(doneKey(evaluador,group),"1"); }catch(e){}
     msg("#studentMsg",`¡Evaluación enviada! Has puesto <b>${fmt(total)}/10</b> a <b>${group}</b>. Gracias.`,"ok");
-    // reset parcial: deja el nombre, limpia selección y notas
+    // reset parcial: deja quién eres, limpia selección y notas
     $("#evGroup").value=""; $("#evComment").value="";
     CONFIG.rubric.forEach(c=>setScore(c.id,0));
+    refreshGroupSelect();
   }catch(e){
     msg("#studentMsg","No se pudo enviar: "+e.message+". Inténtalo de nuevo.","err");
   }finally{
@@ -520,10 +633,10 @@ function reveal(g){
   $("#rvName").textContent=g;
   $("#rvGrade").textContent= n? fmt(avg("total")) : "—";
   $("#rvCount").textContent= n? `Media de ${n} evaluación(es) de sus compañeros` : "Sin evaluaciones";
-  $("#rvBreak").innerHTML=`
-    <div>Contenido<b>${n?fmt(avg("c1")):"—"}</b><span class="muted">/4</span></div>
-    <div>Estructura<b>${n?fmt(avg("c2")):"—"}</b><span class="muted">/3</span></div>
-    <div>Exposición<b>${n?fmt(avg("c3")):"—"}</b><span class="muted">/3</span></div>`;
+  $("#rvBreak").innerHTML=CONFIG.rubric.map(c=>{
+    const short=c.name.replace(/^\d+\.\s*/,"").split(/\s+y\s+|\s+/)[0];
+    return `<div>${short}<b>${n?fmt(avg(c.id)):"—"}</b><span class="muted">/${c.max}</span></div>`;
+  }).join("");
   $("#reveal").classList.remove("hidden");
 }
 function closeReveal(){$("#reveal").classList.add("hidden");}
@@ -540,7 +653,7 @@ async function api(payload){
   });
   return res.json();
 }
-const LS_EV="coev_demo_evals", LS_GR="coev_groups";
+const LS_EV="coev_demo_evals", LS_GR="coev_groups_v2";
 function loadGroupsLocal(){ try{const g=JSON.parse(localStorage.getItem(LS_GR)); return Array.isArray(g)&&g.length?g:CONFIG.defaultGroups.slice();}catch(e){return CONFIG.defaultGroups.slice();} }
 function saveGroupsLocal(g){ try{localStorage.setItem(LS_GR,JSON.stringify(g));}catch(e){} }
 function demoAll(){ try{return JSON.parse(localStorage.getItem(LS_EV))||[];}catch(e){return [];} }
