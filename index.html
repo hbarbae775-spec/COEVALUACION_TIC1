@@ -540,7 +540,16 @@ async function submitEval(){
   const btn=$("#submitBtn"); btn.disabled=true; btn.innerHTML='<span class="spin"></span> Enviando…';
   try{
     if(DEMO){ demoSubmit(payload); }
-    else{ const r=await api(payload); if(!r||!r.ok) throw new Error(r&&r.error||"Error del servidor"); }
+    else{
+      try{
+        const r=await api(payload);
+        if(!r||!r.ok) throw new Error(r&&r.error||"Error del servidor");
+      }catch(e1){
+        // Red de seguridad: reintento a ciegas. Si el despliegue ejecuta,
+        // la evaluación se guarda igualmente aunque no podamos leer la respuesta.
+        await apiBlind(payload);
+      }
+    }
     try{ localStorage.setItem(doneKey(evaluador,group),"1"); }catch(e){}
     msg("#studentMsg",`¡Evaluación enviada! Has puesto <b>${fmt(total)}/10</b> a <b>${group}</b>. Gracias.`,"ok");
     // reset parcial: deja quién eres, limpia selección y notas
@@ -645,13 +654,29 @@ function closeReveal(){$("#reveal").classList.add("hidden");}
    Backend (Apps Script) y modo demo (localStorage)
    ================================================================= */
 async function api(payload){
-  // POST text/plain → sin preflight CORS
+  // POST text/plain → petición simple (sin preflight CORS)
   const res=await fetch(CONFIG.backendUrl,{
     method:"POST",
     headers:{"Content-Type":"text/plain;charset=utf-8"},
+    body:JSON.stringify(payload),
+    redirect:"follow"
+  });
+  const txt=await res.text();
+  try{ return JSON.parse(txt); }
+  catch(e){
+    // Respuesta no-JSON: casi siempre es la página de login de Google →
+    // el Web App está desplegado con acceso restringido, no "Cualquier usuario".
+    throw new Error("el script no respondió datos (revisa que esté desplegado con acceso «Cualquier usuario»)");
+  }
+}
+// Envío "a ciegas": no permite leer la respuesta, pero la fila SÍ se escribe
+// en la hoja si el despliegue ejecuta. Se usa como red de seguridad al enviar.
+async function apiBlind(payload){
+  await fetch(CONFIG.backendUrl,{
+    method:"POST", mode:"no-cors",
+    headers:{"Content-Type":"text/plain;charset=utf-8"},
     body:JSON.stringify(payload)
   });
-  return res.json();
 }
 const LS_EV="coev_demo_evals", LS_GR="coev_groups_v2";
 function loadGroupsLocal(){ try{const g=JSON.parse(localStorage.getItem(LS_GR)); return Array.isArray(g)&&g.length?g:CONFIG.defaultGroups.slice();}catch(e){return CONFIG.defaultGroups.slice();} }
